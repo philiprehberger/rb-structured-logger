@@ -60,7 +60,7 @@ module Philiprehberger
       def validate_level!(level)
         return if LEVELS.key?(level)
 
-        raise ArgumentError, "Invalid level: #{level}. Valid: #{LEVELS.keys.join(", ")}"
+        raise ArgumentError, "Invalid level: #{level}. Valid: #{LEVELS.keys.join(', ')}"
       end
     end
   end
