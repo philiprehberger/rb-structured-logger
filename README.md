@@ -61,10 +61,56 @@ logger.warn("visible")   # written
 logger.error("visible")  # written
 ```
 
+Read the current level:
+
+```ruby
+logger.level  # => :debug
+```
+
 Change the level at runtime:
 
 ```ruby
 logger.level = :error
+```
+
+### Temporary Context
+
+Use `with_context` to add context for the duration of a block:
+
+```ruby
+logger.with_context(request_id: "abc-123") do
+  logger.info("Processing request")
+  # => {"timestamp":"...","level":"info","message":"Processing request","request_id":"abc-123"}
+end
+# Context is restored after the block
+```
+
+### Silence
+
+Temporarily suppress log output by raising the minimum level:
+
+```ruby
+logger.silence(:fatal) do
+  logger.info("suppressed")   # not written
+  logger.error("suppressed")  # not written
+end
+# Level is restored after the block
+```
+
+### Exception Logging
+
+Log exceptions with class, message, and backtrace:
+
+```ruby
+begin
+  risky_operation
+rescue => e
+  logger.log_exception(e)
+  # => {"timestamp":"...","level":"error","message":"something broke","error_class":"RuntimeError","backtrace":[...]}
+end
+
+# Custom level and extra context:
+logger.log_exception(e, level: :fatal, user_id: 42)
 ```
 
 ### Custom Output
@@ -89,7 +135,11 @@ logger = Philiprehberger::StructuredLogger::Logger.new(output: file)
 | `error(message, **extra)` | Log at error level |
 | `fatal(message, **extra)` | Log at fatal level |
 | `child(**context)` | Create a child logger with merged context |
+| `level` | Get the current log level |
 | `level=(new_level)` | Set the minimum log level |
+| `with_context(**extra, &block)` | Temporarily merge context for a block |
+| `silence(level = :fatal, &block)` | Temporarily raise log level for a block |
+| `log_exception(exception, level: :error, **extra)` | Log exception details |
 
 ### `Philiprehberger::StructuredLogger::Formatter`
 
