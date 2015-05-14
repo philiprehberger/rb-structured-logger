@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Add License badge to README
+- Add bug_tracker_uri to gemspec
+- Add Development section to README
+- Add Requirements section to README
+
 ## [0.2.0] - 2026-03-13
 - Add `level` getter to read the current log level
 - Add `with_context` for temporarily merging context during a block
