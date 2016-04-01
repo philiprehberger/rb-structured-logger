@@ -29,5 +29,44 @@ module Philiprehberger
         }
       end
     end
+
+    # Builds plain-text structured log entries.
+    class TextFormatter
+      # Format a log entry as a human-readable text string.
+      #
+      # @param level [Symbol] the log level
+      # @param message [String] the log message
+      # @param context [Hash] merged context data
+      # @return [String] formatted text log line
+      def call(level, message, context)
+        timestamp = Time.now.utc.iso8601(3)
+        parts = ["[#{timestamp}] #{level.to_s.upcase}: #{message}"]
+        context.each do |key, value|
+          parts << "#{key}=#{value}"
+        end
+        parts.join(" ")
+      end
+    end
+
+    # Resolves a formatter option to a callable formatter instance.
+    #
+    # @param formatter [Symbol, Proc, nil, Object] the formatter specification
+    # @return [Object] a callable formatter
+    def self.resolve_formatter(formatter)
+      case formatter
+      when nil, :json
+        Formatter.new
+      when :text
+        TextFormatter.new
+      when Proc
+        formatter
+      else
+        unless formatter.respond_to?(:call)
+          raise ArgumentError, "Formatter must be :json, :text, a Proc, or respond to #call"
+        end
+
+        formatter
+      end
+    end
   end
 end
