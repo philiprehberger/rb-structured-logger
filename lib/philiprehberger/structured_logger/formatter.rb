@@ -54,16 +54,11 @@ module Philiprehberger
     # @return [Object] a callable formatter
     def self.resolve_formatter(formatter)
       case formatter
-      when nil, :json
-        Formatter.new
-      when :text
-        TextFormatter.new
-      when Proc
-        formatter
+      when nil, :json then Formatter.new
+      when :text then TextFormatter.new
+      when Proc then formatter
       else
-        unless formatter.respond_to?(:call)
-          raise ArgumentError, "Formatter must be :json, :text, a Proc, or respond to #call"
-        end
+        raise ArgumentError, "Formatter must be :json, :text, a Proc, or respond to #call" unless formatter.respond_to?(:call)
 
         formatter
       end

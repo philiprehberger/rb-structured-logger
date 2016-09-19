@@ -75,7 +75,11 @@ module Philiprehberger
         end
 
         # Drain remaining items after stop signal
-        until @queue.empty?
+        drain_remaining
+      end
+
+      def drain_remaining
+        loop do
           line = @queue.pop(true)
           @output.puts(line) unless line == :stop
         rescue ThreadError
