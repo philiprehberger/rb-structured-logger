@@ -5,8 +5,6 @@ require "securerandom"
 
 module Philiprehberger
   module StructuredLogger
-    # Thread-safe structured logger with context, child loggers, multiple
-    # outputs, custom formatters, log sampling, correlation IDs, and async mode.
     class Logger
       LEVELS = { debug: 0, info: 1, warn: 2, error: 3, fatal: 4 }.freeze
 
@@ -81,19 +79,11 @@ module Philiprehberger
       end
 
       def flush
-        @monitor.synchronize do
-          @outputs.each do |out|
-            out[:io].flush if out[:io].respond_to?(:flush)
-          end
-        end
+        @monitor.synchronize { @outputs.each { |out| out[:io].flush if out[:io].respond_to?(:flush) } }
       end
 
       def close
-        @monitor.synchronize do
-          @outputs.each do |out|
-            out[:io].close if out[:io].is_a?(AsyncWriter)
-          end
-        end
+        @monitor.synchronize { @outputs.each { |out| out[:io].close if out[:io].is_a?(AsyncWriter) } }
       end
 
       LEVELS.each_key do |lvl|
@@ -115,42 +105,30 @@ module Philiprehberger
       end
 
       def log(level, message, **extra)
-        return unless should_log?(level)
+        return unless LEVELS.fetch(level) >= LEVELS.fetch(@level)
         return unless sample?(level)
 
         merged = build_merged_context(extra)
-
-        @monitor.synchronize do
-          write_to_outputs(level, message, merged)
-        end
+        @monitor.synchronize { write_to_outputs(level, message, merged) }
       end
 
       def build_merged_context(extra)
         merged = @context.merge(extra)
-        correlation_id = Thread.current[CORRELATION_ID_KEY]
-        merged = merged.merge(correlation_id: correlation_id) if correlation_id
-        merged
+        cid = Thread.current[CORRELATION_ID_KEY]
+        cid ? merged.merge(correlation_id: cid) : merged
       end
 
       def write_to_outputs(level, message, merged)
         @outputs.each do |out|
           next if out[:level] && LEVELS.fetch(level) < LEVELS.fetch(out[:level])
 
-          line = out[:formatter].call(level, message, merged)
-          out[:io].puts(line)
+          out[:io].puts(out[:formatter].call(level, message, merged))
         end
-      end
-
-      def should_log?(level)
-        LEVELS.fetch(level) >= LEVELS.fetch(@level)
       end
 
       def sample?(level)
         rate = @sampling.fetch(level, 1.0)
-        return true if rate >= 1.0
-        return false if rate <= 0.0
-
-        rand < rate
+        rate >= 1.0 || (rate > 0.0 && rand < rate)
       end
 
       def validate_level!(level)
