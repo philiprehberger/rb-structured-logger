@@ -1,6 +1,10 @@
-# Philiprehberger::StructuredLogger
+# philiprehberger-structured_logger
 
-A zero-dependency Ruby gem for structured JSON logging with context merging, child loggers, level filtering, multiple outputs, custom formatters, log sampling, correlation IDs, and async output.
+[![Tests](https://github.com/philiprehberger/rb-structured-logger/actions/workflows/ci.yml/badge.svg)](https://github.com/philiprehberger/rb-structured-logger/actions/workflows/ci.yml)
+[![Gem Version](https://badge.fury.io/rb/philiprehberger-structured_logger.svg)](https://rubygems.org/gems/philiprehberger-structured_logger)
+[![License](https://img.shields.io/github/license/philiprehberger/rb-structured-logger)](LICENSE)
+
+Structured JSON logger with context merging, child loggers, filtering, and async output for Ruby
 
 ## Requirements
 
@@ -16,7 +20,7 @@ gem "philiprehberger-structured_logger"
 
 Or install directly:
 
-```sh
+```bash
 gem install philiprehberger-structured_logger
 ```
 
