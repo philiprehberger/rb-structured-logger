@@ -3,6 +3,7 @@
 [![Tests](https://github.com/philiprehberger/rb-structured-logger/actions/workflows/ci.yml/badge.svg)](https://github.com/philiprehberger/rb-structured-logger/actions/workflows/ci.yml)
 [![Gem Version](https://badge.fury.io/rb/philiprehberger-structured_logger.svg)](https://rubygems.org/gems/philiprehberger-structured_logger)
 [![License](https://img.shields.io/github/license/philiprehberger/rb-structured-logger)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20Sponsors-ec6cb9)](https://github.com/sponsors/philiprehberger)
 
 Structured JSON logger with context and child loggers
 
@@ -293,4 +294,4 @@ bundle exec rubocop
 
 ## License
 
-MIT
+[MIT](LICENSE)
