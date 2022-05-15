@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "json"
-require "time"
+require 'json'
+require 'time'
 
 module Philiprehberger
   module StructuredLogger
@@ -44,7 +44,7 @@ module Philiprehberger
         context.each do |key, value|
           parts << "#{key}=#{value}"
         end
-        parts.join(" ")
+        parts.join(' ')
       end
     end
 
@@ -54,7 +54,7 @@ module Philiprehberger
       when :text then TextFormatter.new
       when Proc then formatter
       else
-        raise ArgumentError, "Invalid formatter" unless formatter.respond_to?(:call)
+        raise ArgumentError, 'Invalid formatter' unless formatter.respond_to?(:call)
 
         formatter
       end

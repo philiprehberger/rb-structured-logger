@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require "monitor"
-require "securerandom"
+require 'monitor'
+require 'securerandom'
 
 module Philiprehberger
   module StructuredLogger
