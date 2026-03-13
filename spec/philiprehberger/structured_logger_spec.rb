@@ -153,6 +153,18 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
     end
   end
 
+  describe "#level" do
+    it "returns the current log level" do
+      expect(logger.level).to eq(:debug)
+    end
+
+    it "reflects changes made via level=" do
+      logger.level = :warn
+
+      expect(logger.level).to eq(:warn)
+    end
+  end
+
   describe "#level=" do
     it "changes the minimum log level" do
       logger.level = :error
@@ -166,6 +178,110 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
 
     it "raises on invalid level" do
       expect { logger.level = :bogus }.to raise_error(ArgumentError, /Invalid level/)
+    end
+  end
+
+  describe "#with_context" do
+    let(:context) { { service: "api" } }
+
+    it "merges extra context during the block" do
+      logger.with_context(request_id: "abc") do
+        logger.info("inside")
+      end
+
+      entry = JSON.parse(output.string)
+      expect(entry["service"]).to eq("api")
+      expect(entry["request_id"]).to eq("abc")
+    end
+
+    it "restores original context after the block" do
+      logger.with_context(request_id: "abc") do
+        logger.info("inside")
+      end
+
+      expect(logger.context).to eq({ service: "api" })
+    end
+
+    it "restores context even when block raises" do
+      expect do
+        logger.with_context(request_id: "abc") { raise "boom" }
+      end.to raise_error(RuntimeError, "boom")
+
+      expect(logger.context).to eq({ service: "api" })
+    end
+  end
+
+  describe "#silence" do
+    it "suppresses lower-level logs during the block" do
+      logger.silence(:fatal) do
+        logger.info("hidden")
+        logger.error("hidden")
+      end
+
+      expect(output.string).to be_empty
+    end
+
+    it "allows logs at or above the silence level" do
+      logger.silence(:error) do
+        logger.fatal("visible")
+      end
+
+      entry = JSON.parse(output.string)
+      expect(entry["level"]).to eq("fatal")
+    end
+
+    it "restores the original level after the block" do
+      logger.silence(:fatal) do
+        logger.info("hidden")
+      end
+
+      logger.info("visible")
+      expect(output.string).not_to be_empty
+    end
+
+    it "restores level even when block raises" do
+      expect do
+        logger.silence(:fatal) { raise "boom" }
+      end.to raise_error(RuntimeError, "boom")
+
+      expect(logger.level).to eq(:debug)
+    end
+  end
+
+  describe "#log_exception" do
+    it "logs exception class, message, and backtrace" do
+      exception = begin
+        raise StandardError, "something broke"
+      rescue StandardError => e
+        e
+      end
+
+      logger.log_exception(exception)
+      entry = JSON.parse(output.string)
+
+      expect(entry["level"]).to eq("error")
+      expect(entry["message"]).to eq("something broke")
+      expect(entry["error_class"]).to eq("StandardError")
+      expect(entry["backtrace"]).to be_an(Array)
+      expect(entry["backtrace"]).not_to be_empty
+    end
+
+    it "logs at a custom level" do
+      exception = StandardError.new("minor issue")
+
+      logger.log_exception(exception, level: :warn)
+      entry = JSON.parse(output.string)
+
+      expect(entry["level"]).to eq("warn")
+    end
+
+    it "merges extra context" do
+      exception = StandardError.new("oops")
+
+      logger.log_exception(exception, user_id: 42)
+      entry = JSON.parse(output.string)
+
+      expect(entry["user_id"]).to eq(42)
     end
   end
 
