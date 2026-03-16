@@ -2,6 +2,10 @@
 
 A zero-dependency Ruby gem for structured JSON logging with context merging, child loggers, level filtering, and pluggable outputs.
 
+## Requirements
+
+- Ruby >= 3.1
+
 ## Installation
 
 Add to your Gemfile:
@@ -146,6 +150,15 @@ logger = Philiprehberger::StructuredLogger::Logger.new(output: file)
 | Method | Description |
 |---|---|
 | `call(level, message, context)` | Build a JSON log string |
+
+
+## Development
+
+```bash
+bundle install
+bundle exec rspec
+bundle exec rubocop
+```
 
 ## License
 
