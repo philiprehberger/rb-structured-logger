@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "thread"
-
 module Philiprehberger
   module StructuredLogger
     # Non-blocking log writer that enqueues log lines to a background thread.
@@ -44,9 +42,7 @@ module Philiprehberger
 
       # Force all buffered log lines to be written immediately.
       def flush
-        until @queue.empty?
-          Thread.pass
-        end
+        Thread.pass until @queue.empty?
         @output.flush if @output.respond_to?(:flush)
       end
 

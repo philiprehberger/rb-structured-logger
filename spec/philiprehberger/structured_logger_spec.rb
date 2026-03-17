@@ -312,10 +312,8 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
     it "supports per-output level filtering" do
       out1 = StringIO.new
       out2 = StringIO.new
-      multi = described_class.new(outputs: [
-                                   { io: out1, level: nil },
-                                   { io: out2, level: :error }
-                                 ])
+      outputs = [{ io: out1, level: nil }, { io: out2, level: :error }]
+      multi = described_class.new(outputs: outputs)
 
       multi.info("info only")
       multi.error("error too")
@@ -331,10 +329,8 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
     it "supports per-output formatters" do
       out_json = StringIO.new
       out_text = StringIO.new
-      multi = described_class.new(outputs: [
-                                   { io: out_json, formatter: :json },
-                                   { io: out_text, formatter: :text }
-                                 ])
+      outputs = [{ io: out_json, formatter: :json }, { io: out_text, formatter: :text }]
+      multi = described_class.new(outputs: outputs)
 
       multi.info("hello", user: "alice")
 

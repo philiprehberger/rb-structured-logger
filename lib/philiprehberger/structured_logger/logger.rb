@@ -14,14 +14,6 @@ module Philiprehberger
 
       attr_reader :context, :level
 
-      # @param output [IO, nil] writable output (default: $stdout). Ignored if outputs: is provided.
-      # @param outputs [Array<IO, Hash>] multiple outputs
-      # @param level [Symbol] minimum log level
-      # @param context [Hash] base context merged into every entry
-      # @param formatter [Symbol, Proc, nil] formatter for default output
-      # @param sampling [Hash{Symbol => Float}] sampling rates per level (0.0..1.0)
-      # @param async [Boolean] enable non-blocking background writes
-      # @param buffer_size [Integer] async buffer size
       def initialize(**opts)
         @level = opts.fetch(:level, :debug)
         @context = opts.fetch(:context, {}).freeze
@@ -33,19 +25,11 @@ module Philiprehberger
         @outputs = OutputBuilder.call(opts, @async, @buffer_size)
       end
 
-      # Set the minimum log level.
-      #
-      # @param new_level [Symbol]
       def level=(new_level)
         validate_level!(new_level)
         @level = new_level
       end
 
-      # Add an additional output destination.
-      #
-      # @param io [IO] writable output
-      # @param level [Symbol, nil] minimum level for this output
-      # @param formatter [Symbol, Proc, nil] formatter for this output
       def add_output(io, level: nil, formatter: nil)
         resolved = StructuredLogger.resolve_formatter(formatter)
         wrapped = @async ? AsyncWriter.new(io, buffer_size: @buffer_size) : io
@@ -54,20 +38,12 @@ module Philiprehberger
         end
       end
 
-      # Create a child logger with additional context.
-      #
-      # @param extra [Hash] context to merge
-      # @return [Logger]
       def child(**extra)
         clone = self.class.allocate
         clone.send(:initialize_child, @outputs, @level, @context.merge(extra), @sampling, @monitor)
         clone
       end
 
-      # Temporarily merge extra context for the duration of a block.
-      #
-      # @param extra [Hash] additional context
-      # @yield block during which the extra context is active
       def with_context(**extra, &block)
         @monitor.synchronize do
           original = @context
@@ -78,10 +54,6 @@ module Philiprehberger
         end
       end
 
-      # Temporarily raise the log level for the duration of a block.
-      #
-      # @param temp_level [Symbol] level to use during the block
-      # @yield block during which the level is raised
       def silence(temp_level = :fatal, &block)
         @monitor.synchronize do
           original = @level
@@ -92,10 +64,6 @@ module Philiprehberger
         end
       end
 
-      # Set a correlation ID for all log entries within the block.
-      #
-      # @param id [String, nil] correlation ID (auto-generates a UUID if nil)
-      # @yield block during which the correlation ID is active
       def with_correlation_id(id = nil, &block)
         id ||= SecureRandom.uuid
         previous = Thread.current[CORRELATION_ID_KEY]
@@ -105,11 +73,6 @@ module Philiprehberger
         Thread.current[CORRELATION_ID_KEY] = previous
       end
 
-      # Log an exception with its class, message, and backtrace.
-      #
-      # @param exception [Exception] the exception to log
-      # @param level [Symbol] log level to use
-      # @param extra [Hash] additional context
       def log_exception(exception, level: :error, **extra)
         log(level, exception.message,
             error_class: exception.class.name,
@@ -117,7 +80,6 @@ module Philiprehberger
             **extra)
       end
 
-      # Force all async outputs to write their buffered log lines.
       def flush
         @monitor.synchronize do
           @outputs.each do |out|
@@ -126,7 +88,6 @@ module Philiprehberger
         end
       end
 
-      # Flush and stop all async writers.
       def close
         @monitor.synchronize do
           @outputs.each do |out|
@@ -143,7 +104,6 @@ module Philiprehberger
 
       private
 
-      # Initialize a child logger sharing the parent's outputs and monitor.
       def initialize_child(outputs, level, context, sampling, monitor)
         @outputs = outputs
         @level = level
