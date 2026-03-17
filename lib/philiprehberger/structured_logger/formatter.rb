@@ -54,10 +54,7 @@ module Philiprehberger
       when :text then TextFormatter.new
       when Proc then formatter
       else
-        unless formatter.respond_to?(:call)
-          raise ArgumentError,
-                "Formatter must be :json, :text, a Proc, or respond to #call"
-        end
+        raise ArgumentError, "Invalid formatter" unless formatter.respond_to?(:call)
 
         formatter
       end

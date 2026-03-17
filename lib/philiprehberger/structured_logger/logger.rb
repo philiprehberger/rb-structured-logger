@@ -31,9 +31,7 @@ module Philiprehberger
       def add_output(io, level: nil, formatter: nil)
         resolved = StructuredLogger.resolve_formatter(formatter)
         wrapped = @async ? AsyncWriter.new(io, buffer_size: @buffer_size) : io
-        @monitor.synchronize do
-          @outputs << { io: wrapped, level: level, formatter: resolved }
-        end
+        @monitor.synchronize { @outputs << { io: wrapped, level: level, formatter: resolved } }
       end
 
       def child(**extra)
@@ -95,13 +93,9 @@ module Philiprehberger
       private
 
       def initialize_child(outputs, level, context, sampling, monitor)
-        @outputs = outputs
-        @level = level
+        @outputs, @level, @sampling, @monitor = outputs, level, sampling, monitor
         @context = context.freeze
-        @sampling = sampling
-        @monitor = monitor
-        @async = false
-        @buffer_size = 1000
+        @async, @buffer_size = false, 1000
       end
 
       def log(level, message, **extra)
@@ -132,9 +126,7 @@ module Philiprehberger
       end
 
       def validate_level!(level)
-        return if LEVELS.key?(level)
-
-        raise ArgumentError, "Invalid level: #{level}. Valid: #{LEVELS.keys.join(', ')}"
+        raise ArgumentError, "Invalid level: #{level}" unless LEVELS.key?(level)
       end
     end
 
