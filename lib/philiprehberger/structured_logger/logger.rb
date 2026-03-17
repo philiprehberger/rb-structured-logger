@@ -93,23 +93,21 @@ module Philiprehberger
       private
 
       def initialize_child(outputs, level, context, sampling, monitor)
-        @outputs, @level, @sampling, @monitor = outputs, level, sampling, monitor
+        @outputs = outputs
+        @level = level
         @context = context.freeze
-        @async, @buffer_size = false, 1000
+        @sampling = sampling
+        @monitor = monitor
       end
 
       def log(level, message, **extra)
         return unless LEVELS.fetch(level) >= LEVELS.fetch(@level)
         return unless sample?(level)
 
-        merged = build_merged_context(extra)
-        @monitor.synchronize { write_to_outputs(level, message, merged) }
-      end
-
-      def build_merged_context(extra)
         merged = @context.merge(extra)
         cid = Thread.current[CORRELATION_ID_KEY]
-        cid ? merged.merge(correlation_id: cid) : merged
+        merged = merged.merge(correlation_id: cid) if cid
+        @monitor.synchronize { write_to_outputs(level, message, merged) }
       end
 
       def write_to_outputs(level, message, merged)
