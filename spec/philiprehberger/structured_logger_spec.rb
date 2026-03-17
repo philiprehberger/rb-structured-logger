@@ -426,7 +426,7 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
     it "raises on invalid formatter" do
       expect do
         described_class.new(output: output, formatter: 42)
-      end.to raise_error(ArgumentError, /Formatter must be/)
+      end.to raise_error(ArgumentError, /Invalid formatter/)
     end
   end
 
@@ -693,6 +693,6 @@ RSpec.describe Philiprehberger::StructuredLogger, ".resolve_formatter" do
   it "raises for non-callable objects" do
     expect do
       described_class.resolve_formatter(42)
-    end.to raise_error(ArgumentError, /Formatter must be/)
+    end.to raise_error(ArgumentError, /Invalid formatter/)
   end
 end
