@@ -313,9 +313,9 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
       out1 = StringIO.new
       out2 = StringIO.new
       multi = described_class.new(outputs: [
-        { io: out1, level: nil },
-        { io: out2, level: :error }
-      ])
+                                   { io: out1, level: nil },
+                                   { io: out2, level: :error }
+                                 ])
 
       multi.info("info only")
       multi.error("error too")
@@ -332,9 +332,9 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
       out_json = StringIO.new
       out_text = StringIO.new
       multi = described_class.new(outputs: [
-        { io: out_json, formatter: :json },
-        { io: out_text, formatter: :text }
-      ])
+                                   { io: out_json, formatter: :json },
+                                   { io: out_text, formatter: :text }
+                                 ])
 
       multi.info("hello", user: "alice")
 
@@ -455,9 +455,8 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
     it "samples approximately the correct percentage" do
       sampled = described_class.new(output: output, sampling: { info: 0.5 })
 
-      allow(sampled).to receive(:rand).and_return(
-        *([0.3] * 50 + [0.7] * 50)
-      )
+      values = (Array.new(50, 0.3) + Array.new(50, 0.7))
+      allow(sampled).to receive(:rand).and_return(*values)
 
       100.times { sampled.info("maybe") }
       lines = output.string.strip.split("\n")
@@ -680,7 +679,7 @@ RSpec.describe Philiprehberger::StructuredLogger, ".resolve_formatter" do
   end
 
   it "returns a proc as-is" do
-    proc = ->(l, m, c) { "#{l}:#{m}" }
+    proc = ->(level, message, _context) { "#{level}:#{message}" }
     result = described_class.resolve_formatter(proc)
 
     expect(result).to eq(proc)
@@ -688,7 +687,7 @@ RSpec.describe Philiprehberger::StructuredLogger, ".resolve_formatter" do
 
   it "returns a callable object as-is" do
     obj = Object.new
-    def obj.call(l, m, c); end
+    def obj.call(_level, _message, _context); end
 
     result = described_class.resolve_formatter(obj)
 

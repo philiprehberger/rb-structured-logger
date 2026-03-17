@@ -15,24 +15,22 @@ module Philiprehberger
       attr_reader :context, :level
 
       # @param output [IO, nil] writable output (default: $stdout). Ignored if outputs: is provided.
-      # @param outputs [Array<IO, Hash>] multiple outputs. Each element is an IO or
-      #   a Hash with :io, optional :level, and optional :formatter.
+      # @param outputs [Array<IO, Hash>] multiple outputs
       # @param level [Symbol] minimum log level
       # @param context [Hash] base context merged into every entry
-      # @param formatter [Symbol, Proc, nil] formatter for default output (:json, :text, or callable)
+      # @param formatter [Symbol, Proc, nil] formatter for default output
       # @param sampling [Hash{Symbol => Float}] sampling rates per level (0.0..1.0)
       # @param async [Boolean] enable non-blocking background writes
-      # @param buffer_size [Integer] async buffer size (only used when async: true)
-      def initialize(output: nil, outputs: nil, level: :debug, context: {},
-                     formatter: nil, sampling: {}, async: false, buffer_size: 1000)
-        @level = level
-        @context = context.freeze
-        @sampling = sampling
-        @async = async
-        @buffer_size = buffer_size
+      # @param buffer_size [Integer] async buffer size
+      def initialize(**opts)
+        @level = opts.fetch(:level, :debug)
+        @context = opts.fetch(:context, {}).freeze
+        @sampling = opts.fetch(:sampling, {})
+        @async = opts.fetch(:async, false)
+        @buffer_size = opts.fetch(:buffer_size, 1000)
         @monitor = Monitor.new
 
-        @outputs = build_outputs(output, outputs, formatter, async, buffer_size)
+        @outputs = OutputBuilder.call(opts, @async, @buffer_size)
       end
 
       # Set the minimum log level.
@@ -95,7 +93,6 @@ module Philiprehberger
       end
 
       # Set a correlation ID for all log entries within the block.
-      # Uses Thread-local storage so each thread can have its own ID.
       #
       # @param id [String, nil] correlation ID (auto-generates a UUID if nil)
       # @yield block during which the correlation ID is active
@@ -114,10 +111,10 @@ module Philiprehberger
       # @param level [Symbol] log level to use
       # @param extra [Hash] additional context
       def log_exception(exception, level: :error, **extra)
-        log(level, exception.message, **extra.merge(
-          error_class: exception.class.name,
-          backtrace: exception.backtrace || []
-        ))
+        log(level, exception.message,
+            error_class: exception.class.name,
+            backtrace: exception.backtrace || [],
+            **extra)
       end
 
       # Force all async outputs to write their buffered log lines.
@@ -133,7 +130,7 @@ module Philiprehberger
       def close
         @monitor.synchronize do
           @outputs.each do |out|
-            out[:io].close if out[:io].respond_to?(:close) && out[:io].is_a?(AsyncWriter)
+            out[:io].close if out[:io].is_a?(AsyncWriter)
           end
         end
       end
@@ -157,42 +154,30 @@ module Philiprehberger
         @buffer_size = 1000
       end
 
-      def build_outputs(output, outputs, formatter, async, buffer_size)
-        if outputs
-          outputs.map do |out|
-            if out.is_a?(Hash)
-              io = async ? AsyncWriter.new(out[:io], buffer_size: buffer_size) : out[:io]
-              fmt = StructuredLogger.resolve_formatter(out[:formatter])
-              { io: io, level: out[:level], formatter: fmt }
-            else
-              io = async ? AsyncWriter.new(out, buffer_size: buffer_size) : out
-              { io: io, level: nil, formatter: StructuredLogger.resolve_formatter(formatter) }
-            end
-          end
-        else
-          io = output || $stdout
-          io = async ? AsyncWriter.new(io, buffer_size: buffer_size) : io
-          [{ io: io, level: nil, formatter: StructuredLogger.resolve_formatter(formatter) }]
-        end
-      end
-
       def log(level, message, **extra)
         return unless should_log?(level)
         return unless sample?(level)
 
-        merged = @context.merge(extra)
-
-        # Inject correlation ID if present
-        correlation_id = Thread.current[CORRELATION_ID_KEY]
-        merged = merged.merge(correlation_id: correlation_id) if correlation_id
+        merged = build_merged_context(extra)
 
         @monitor.synchronize do
-          @outputs.each do |out|
-            next if out[:level] && LEVELS.fetch(level) < LEVELS.fetch(out[:level])
+          write_to_outputs(level, message, merged)
+        end
+      end
 
-            line = out[:formatter].call(level, message, merged)
-            out[:io].puts(line)
-          end
+      def build_merged_context(extra)
+        merged = @context.merge(extra)
+        correlation_id = Thread.current[CORRELATION_ID_KEY]
+        merged = merged.merge(correlation_id: correlation_id) if correlation_id
+        merged
+      end
+
+      def write_to_outputs(level, message, merged)
+        @outputs.each do |out|
+          next if out[:level] && LEVELS.fetch(level) < LEVELS.fetch(out[:level])
+
+          line = out[:formatter].call(level, message, merged)
+          out[:io].puts(line)
         end
       end
 
@@ -212,6 +197,43 @@ module Philiprehberger
         return if LEVELS.key?(level)
 
         raise ArgumentError, "Invalid level: #{level}. Valid: #{LEVELS.keys.join(', ')}"
+      end
+    end
+
+    # Builds output configuration from constructor options.
+    module OutputBuilder
+      module_function
+
+      def call(opts, async, buffer_size)
+        outputs = opts[:outputs]
+        if outputs
+          build_multi(outputs, opts[:formatter], async, buffer_size)
+        else
+          build_single(opts[:output], opts[:formatter], async, buffer_size)
+        end
+      end
+
+      def build_multi(outputs, default_formatter, async, buffer_size)
+        outputs.map do |out|
+          if out.is_a?(Hash)
+            build_hash_output(out, async, buffer_size)
+          else
+            io = async ? AsyncWriter.new(out, buffer_size: buffer_size) : out
+            { io: io, level: nil, formatter: StructuredLogger.resolve_formatter(default_formatter) }
+          end
+        end
+      end
+
+      def build_hash_output(out, async, buffer_size)
+        io = async ? AsyncWriter.new(out[:io], buffer_size: buffer_size) : out[:io]
+        fmt = StructuredLogger.resolve_formatter(out[:formatter])
+        { io: io, level: out[:level], formatter: fmt }
+      end
+
+      def build_single(output, formatter, async, buffer_size)
+        io = output || $stdout
+        io = AsyncWriter.new(io, buffer_size: buffer_size) if async
+        [{ io: io, level: nil, formatter: StructuredLogger.resolve_formatter(formatter) }]
       end
     end
   end
