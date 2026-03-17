@@ -48,10 +48,6 @@ module Philiprehberger
       end
     end
 
-    # Resolves a formatter option to a callable formatter instance.
-    #
-    # @param formatter [Symbol, Proc, nil, Object] the formatter specification
-    # @return [Object] a callable formatter
     def self.resolve_formatter(formatter)
       case formatter
       when nil, :json then Formatter.new
