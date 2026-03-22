@@ -16,3 +16,6 @@ Layout/LineLength:
   Max: 120
 Naming/PredicateMethod:
   Enabled: false
+
+Layout/EndOfLine:
+  Enabled: false
