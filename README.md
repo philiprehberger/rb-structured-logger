@@ -4,7 +4,7 @@
 [![Gem Version](https://badge.fury.io/rb/philiprehberger-structured_logger.svg)](https://rubygems.org/gems/philiprehberger-structured_logger)
 [![License](https://img.shields.io/github/license/philiprehberger/rb-structured-logger)](LICENSE)
 
-Structured JSON logger with context merging, child loggers, filtering, and async output for Ruby
+Structured JSON logger with context and child loggers
 
 ## Requirements
 
