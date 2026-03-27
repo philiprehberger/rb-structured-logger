@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "philiprehberger/structured_logger"
+require 'philiprehberger/structured_logger'
 
 RSpec.configure do |config|
   config.expect_with :rspec do |expectations|
