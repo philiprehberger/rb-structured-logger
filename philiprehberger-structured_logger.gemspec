@@ -11,15 +11,15 @@ Gem::Specification.new do |spec|
   spec.summary = 'Structured JSON logger with context and child loggers'
   spec.description = 'A zero-dependency Ruby gem for structured JSON logging with context merging, ' \
                      'child loggers, level filtering, and pluggable outputs.'
-  spec.homepage = 'https://github.com/philiprehberger/rb-structured-logger'
+  spec.homepage      = 'https://philiprehberger.com/open-source-packages/ruby/philiprehberger-structured_logger'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.1.0'
 
   spec.metadata['homepage_uri'] = spec.homepage
-  spec.metadata['source_code_uri'] = spec.homepage
-  spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata['source_code_uri']       = 'https://github.com/philiprehberger/rb-structured-logger'
+  spec.metadata['changelog_uri']         = 'https://github.com/philiprehberger/rb-structured-logger/blob/main/CHANGELOG.md'
   spec.metadata['rubygems_mfa_required'] = 'true'
-  spec.metadata['bug_tracker_uri'] = "#{spec.homepage}/issues"
+  spec.metadata['bug_tracker_uri']       = 'https://github.com/philiprehberger/rb-structured-logger/issues'
 
   spec.files = Dir['lib/**/*.rb', 'LICENSE', 'README.md', 'CHANGELOG.md']
 
