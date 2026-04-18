@@ -285,6 +285,79 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
     end
   end
 
+  describe '#measure' do
+    it 'returns the block value on success' do
+      result = logger.measure('db.query') { 42 }
+
+      expect(result).to eq(42)
+    end
+
+    it 'emits a single info-level log entry on success' do
+      logger.measure('db.query') { 42 }
+
+      lines = output.string.strip.split("\n")
+      expect(lines.size).to eq(1)
+      expect(JSON.parse(lines.first)['level']).to eq('info')
+    end
+
+    it 'includes the event name in the log entry' do
+      logger.measure('db.query') { 42 }
+      entry = JSON.parse(output.string)
+
+      expect(entry['event']).to eq('db.query')
+    end
+
+    it 'includes a Float duration_ms in the log entry' do
+      logger.measure('db.query') { 42 }
+      entry = JSON.parse(output.string)
+
+      expect(entry).to have_key('duration_ms')
+      expect(entry['duration_ms']).to be_a(Float)
+      expect(entry['duration_ms']).to be >= 0.0
+    end
+
+    it 'merges extra context kwargs into the log entry' do
+      logger.measure('db.query', table: 'users', shard: 1) { 42 }
+      entry = JSON.parse(output.string)
+
+      expect(entry['table']).to eq('users')
+      expect(entry['shard']).to eq(1)
+    end
+
+    it 're-raises exceptions raised by the block' do
+      expect do
+        logger.measure('db.query') { raise StandardError, 'boom' }
+      end.to raise_error(StandardError, 'boom')
+    end
+
+    it 'emits a single info-level log entry on failure' do
+      begin
+        logger.measure('db.query') { raise StandardError, 'boom' }
+      rescue StandardError
+        # expected
+      end
+
+      lines = output.string.strip.split("\n")
+      expect(lines.size).to eq(1)
+      expect(JSON.parse(lines.first)['level']).to eq('info')
+    end
+
+    it 'logs duration_ms, error, and error_class on failure' do
+      begin
+        logger.measure('db.query', table: 'users') { raise StandardError, 'boom' }
+      rescue StandardError
+        # expected
+      end
+
+      entry = JSON.parse(output.string)
+      expect(entry['event']).to eq('db.query')
+      expect(entry['duration_ms']).to be_a(Float)
+      expect(entry['error']).to eq('boom')
+      expect(entry['error_class']).to eq('StandardError')
+      expect(entry['table']).to eq('users')
+    end
+  end
+
   describe 'custom output' do
     it 'writes to the provided IO object' do
       buffer = StringIO.new

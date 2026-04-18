@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-17
+
+### Added
+- `Logger#measure(event, **context) { block }` yields to the block, captures elapsed time, and emits a single info-level structured event with `duration_ms` (plus `error`/`error_class` on failure; original exception re-raised)
+
 ## [0.3.5] - 2026-03-31
 
 ### Added

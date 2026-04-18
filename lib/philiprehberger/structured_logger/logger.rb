@@ -76,6 +76,41 @@ module Philiprehberger
             **extra)
       end
 
+      # Yields to the given block, measures its monotonic wall-clock
+      # duration, and emits a single info-level log entry describing the
+      # outcome. On success, the block's return value is returned. On
+      # exception, the failure is logged and the original exception is
+      # re-raised.
+      #
+      # @param event_name [String, Symbol] the event name to record as
+      #   the `event` field in the log entry.
+      # @param context [Hash] extra context merged into the log entry.
+      # @yield executes the measured block.
+      # @return [Object] the block's return value on success.
+      # @raise re-raises any exception raised by the block.
+      #
+      # @example Measuring a database query
+      #   logger.measure('db.query', table: 'users') { User.find(1) }
+      #   # logs event: 'db.query', table: 'users', duration_ms: 12.345
+      def measure(event_name, **context)
+        start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        begin
+          result = yield
+          duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0).round(3)
+          log(:info, event_name.to_s, event: event_name, duration_ms: duration_ms, **context)
+          result
+        rescue StandardError => e
+          duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000.0).round(3)
+          log(:info, event_name.to_s,
+              event: event_name,
+              duration_ms: duration_ms,
+              error: e.message,
+              error_class: e.class.name,
+              **context)
+          raise
+        end
+      end
+
       def flush
         @monitor.synchronize { @outputs.each { |out| out[:io].flush if out[:io].respond_to?(:flush) } }
       end
