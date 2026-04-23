@@ -121,6 +121,23 @@ end
 logger.log_exception(e, level: :fatal, user_id: 42)
 ```
 
+### Timing a block
+
+Use `measure` to time a block and emit a single structured event with `duration_ms`:
+
+```ruby
+logger.measure("db.query", table: "users") { User.find(1) }
+# => {"timestamp":"...","level":"info","message":"db.query","event":"db.query","table":"users","duration_ms":12.345}
+```
+
+On failure, the original exception is re-raised and the log entry also includes `error` and `error_class`:
+
+```ruby
+logger.measure("db.query") { raise "boom" }
+# => {"timestamp":"...","level":"info","message":"db.query","event":"db.query","duration_ms":0.123,"error":"boom","error_class":"RuntimeError"}
+# RuntimeError: boom
+```
+
 ### Multiple Outputs
 
 Log to multiple destinations simultaneously. Each output can have its own level filter and formatter:
@@ -257,6 +274,7 @@ When the buffer is full, writes fall back to synchronous mode (backpressure) to 
 | `with_context(**extra, &block)` | Temporarily merge context for a block |
 | `silence(level = :fatal, &block)` | Temporarily raise log level for a block |
 | `log_exception(exception, level: :error, **extra)` | Log exception details |
+| `measure(event_name, **context) { block }` | Time a block, emit an info event with `duration_ms`, and re-raise on failure |
 | `add_output(io, level: nil, formatter: nil)` | Add an output destination at runtime |
 | `with_correlation_id(id = nil, &block)` | Set a correlation ID for the block |
 | `flush` | Force write of all buffered log entries |
