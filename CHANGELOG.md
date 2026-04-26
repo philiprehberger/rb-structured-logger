@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-25
+
+### Added
+- `Logger#with_tags(*tags)` for tagged context blocks with automatic restoration
+- `Logger#measure_value(message)` variant of `#measure` that returns the block result while still emitting the timing entry
+
 ## [0.4.0] - 2026-04-17
 
 ### Added

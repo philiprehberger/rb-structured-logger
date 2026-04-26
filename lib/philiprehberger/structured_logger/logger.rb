@@ -50,6 +50,41 @@ module Philiprehberger
         end
       end
 
+      # Adds the given tags to the logger's context under the `:tags`
+      # key, merging with any existing tags (de-duplicated, preserving
+      # insertion order). When a block is given, the previous context is
+      # restored when the block exits (even on exception). Without a
+      # block, the change persists like {#with_context}.
+      #
+      # @param tags [Array<String, Symbol>] one or more tags to add.
+      # @yield (optional) executes within the tagged context; the
+      #   original context is restored on exit.
+      # @return [Object, Hash] the block's return value when a block is
+      #   given, otherwise the new merged context hash.
+      #
+      # @example Block form
+      #   logger.with_tags('auth', 'request') do
+      #     logger.info('Login attempt')
+      #     # entry includes tags: ['auth', 'request']
+      #   end
+      def with_tags(*tags)
+        existing = @context[:tags] || []
+        merged_tags = (existing + tags).uniq
+        if block_given?
+          @monitor.synchronize do
+            original = @context
+            @context = @context.merge(tags: merged_tags).freeze
+            yield
+          ensure
+            @context = original
+          end
+        else
+          @monitor.synchronize do
+            @context = @context.merge(tags: merged_tags).freeze
+          end
+        end
+      end
+
       def silence(temp_level = :fatal, &block)
         @monitor.synchronize do
           original = @level
@@ -109,6 +144,23 @@ module Philiprehberger
               **context)
           raise
         end
+      end
+
+      # Variant of {#measure} that emits the same timing log entry but
+      # also returns the block's return value. Captures and re-raises
+      # exceptions like {#measure}.
+      #
+      # @param event_name [String, Symbol] the event name to record as
+      #   the `event` field in the log entry.
+      # @param context [Hash] extra context merged into the log entry.
+      # @yield executes the measured block.
+      # @return [Object] the block's return value on success.
+      # @raise re-raises any exception raised by the block.
+      #
+      # @example Capturing a query result
+      #   result = logger.measure_value('db.query') { query_database }
+      def measure_value(event_name, **context, &)
+        measure(event_name, **context, &)
       end
 
       def flush

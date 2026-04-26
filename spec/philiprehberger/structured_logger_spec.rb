@@ -211,6 +211,70 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
     end
   end
 
+  describe '#with_tags' do
+    it 'adds tags to context within the block' do
+      logger.with_tags('auth', 'request') do
+        logger.info('inside')
+      end
+
+      entry = JSON.parse(output.string)
+      expect(entry['tags']).to eq(%w[auth request])
+    end
+
+    it 'restores original context after the block' do
+      logger.with_tags('auth') do
+        logger.info('inside')
+      end
+
+      expect(logger.context).to eq({})
+    end
+
+    it 'restores context even when block raises' do
+      expect do
+        logger.with_tags('auth') { raise 'boom' }
+      end.to raise_error(RuntimeError, 'boom')
+
+      expect(logger.context).to eq({})
+    end
+
+    context 'with existing tags in context' do
+      let(:context) { { tags: ['base'] } }
+
+      it 'merges new tags with existing tags preserving order' do
+        logger.with_tags('auth', 'request') do
+          logger.info('inside')
+        end
+
+        entry = JSON.parse(output.string)
+        expect(entry['tags']).to eq(%w[base auth request])
+      end
+
+      it 'de-duplicates overlapping tags' do
+        logger.with_tags('base', 'auth') do
+          logger.info('inside')
+        end
+
+        entry = JSON.parse(output.string)
+        expect(entry['tags']).to eq(%w[base auth])
+      end
+    end
+
+    it 'persists the change when called without a block' do
+      logger.with_tags('auth', 'request')
+
+      expect(logger.context[:tags]).to eq(%w[auth request])
+    end
+
+    it 'de-duplicates tags within a single call' do
+      logger.with_tags('auth', 'auth', 'request') do
+        logger.info('inside')
+      end
+
+      entry = JSON.parse(output.string)
+      expect(entry['tags']).to eq(%w[auth request])
+    end
+  end
+
   describe '#silence' do
     it 'suppresses lower-level logs during the block' do
       logger.silence(:fatal) do
@@ -355,6 +419,54 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
       expect(entry['error']).to eq('boom')
       expect(entry['error_class']).to eq('StandardError')
       expect(entry['table']).to eq('users')
+    end
+  end
+
+  describe '#measure_value' do
+    it 'returns the block value' do
+      result = logger.measure_value('db.query') { 'rows' }
+
+      expect(result).to eq('rows')
+    end
+
+    it 'emits a single info-level timing entry with duration_ms' do
+      logger.measure_value('db.query') { 42 }
+
+      lines = output.string.strip.split("\n")
+      expect(lines.size).to eq(1)
+
+      entry = JSON.parse(lines.first)
+      expect(entry['level']).to eq('info')
+      expect(entry['event']).to eq('db.query')
+      expect(entry['duration_ms']).to be_a(Float)
+      expect(entry['duration_ms']).to be >= 0.0
+    end
+
+    it 'merges extra context kwargs into the log entry' do
+      logger.measure_value('db.query', table: 'users') { 42 }
+      entry = JSON.parse(output.string)
+
+      expect(entry['table']).to eq('users')
+    end
+
+    it 're-raises exceptions raised by the block' do
+      expect do
+        logger.measure_value('db.query') { raise StandardError, 'boom' }
+      end.to raise_error(StandardError, 'boom')
+    end
+
+    it 'logs duration_ms, error, and error_class on failure' do
+      begin
+        logger.measure_value('db.query') { raise StandardError, 'boom' }
+      rescue StandardError
+        # expected
+      end
+
+      entry = JSON.parse(output.string)
+      expect(entry['event']).to eq('db.query')
+      expect(entry['duration_ms']).to be_a(Float)
+      expect(entry['error']).to eq('boom')
+      expect(entry['error_class']).to eq('StandardError')
     end
   end
 

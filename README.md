@@ -256,6 +256,40 @@ logger.close
 
 When the buffer is full, writes fall back to synchronous mode (backpressure) to avoid dropping log entries.
 
+### Tagged Context
+
+Use `with_tags` to add tags to the logging context for the duration of a block. Tags merge with any existing tags (de-duplicated, preserving order) and the original context is restored on exit:
+
+```ruby
+require "philiprehberger/structured_logger"
+
+logger = Philiprehberger::StructuredLogger::Logger.new
+
+logger.with_tags("auth", "request") do
+  logger.info("Login attempt")
+  # => {"timestamp":"...","level":"info","message":"Login attempt","tags":["auth","request"]}
+end
+# Tags are restored after the block
+```
+
+### Measuring with Return Value
+
+Use `measure_value` when you need the block's result while still emitting a timing entry:
+
+```ruby
+require "philiprehberger/structured_logger"
+
+logger = Philiprehberger::StructuredLogger::Logger.new
+
+result = logger.measure_value("db.query") do
+  # ...query the database...
+  [{ id: 1, name: "Alice" }]
+end
+
+# result == [{ id: 1, name: "Alice" }]
+# => {"timestamp":"...","level":"info","message":"db.query","event":"db.query","duration_ms":12.345}
+```
+
 ## API
 
 ### `Philiprehberger::StructuredLogger::Logger`
@@ -275,6 +309,8 @@ When the buffer is full, writes fall back to synchronous mode (backpressure) to 
 | `silence(level = :fatal, &block)` | Temporarily raise log level for a block |
 | `log_exception(exception, level: :error, **extra)` | Log exception details |
 | `measure(event_name, **context) { block }` | Time a block, emit an info event with `duration_ms`, and re-raise on failure |
+| `#with_tags(*tags) { block }` | Add tags to context for the block |
+| `#measure_value(message) { block }` | Like #measure but returns the block's value |
 | `add_output(io, level: nil, formatter: nil)` | Add an output destination at runtime |
 | `with_correlation_id(id = nil, &block)` | Set a correlation ID for the block |
 | `flush` | Force write of all buffered log entries |
