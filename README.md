@@ -4,6 +4,8 @@
 [![Gem Version](https://badge.fury.io/rb/philiprehberger-structured_logger.svg)](https://rubygems.org/gems/philiprehberger-structured_logger)
 [![Last updated](https://img.shields.io/github/last-commit/philiprehberger/rb-structured-logger)](https://github.com/philiprehberger/rb-structured-logger/commits/main)
 
+![philiprehberger-structured_logger](https://raw.githubusercontent.com/philiprehberger/rb-structured-logger/main/package-card.webp)
+
 Structured JSON logger with context and child loggers
 
 ## Requirements
@@ -120,6 +122,36 @@ end
 # Custom level and extra context:
 logger.log_exception(e, level: :fatal, user_id: 42)
 ```
+
+### Structured backtraces
+
+By default `log_exception` emits the backtrace as an array of raw
+strings (matching `exception.backtrace`). Pass `structured_backtrace: true`
+to parse each line into a hash with `:file`, `:line`, and `:method`
+keys — easier to index in log-aggregation systems like Elasticsearch,
+Datadog, or Loki:
+
+```ruby
+begin
+  risky_operation
+rescue => e
+  logger.log_exception(e, structured_backtrace: true)
+  # => {
+  #      "timestamp":"...",
+  #      "level":"error",
+  #      "message":"something broke",
+  #      "error_class":"RuntimeError",
+  #      "backtrace":[
+  #        {"file":"app/foo.rb","line":42,"method":"bar"},
+  #        {"file":"lib/baz.rb","line":7,"method":"qux"}
+  #      ]
+  #    }
+end
+```
+
+Lines without a method segment omit the `:method` key. Lines that
+don't match the standard Ruby backtrace format fall back to
+`{ raw: "<original line>" }`.
 
 ### Timing a block
 
@@ -307,7 +339,7 @@ end
 | `level=(new_level)` | Set the minimum log level |
 | `with_context(**extra, &block)` | Temporarily merge context for a block |
 | `silence(level = :fatal, &block)` | Temporarily raise log level for a block |
-| `log_exception(exception, level: :error, **extra)` | Log exception details |
+| `log_exception(exception, level: :error, structured_backtrace: false, **extra)` | Log exception details. Pass `structured_backtrace: true` to emit the backtrace as `{file:, line:, method:}` hashes |
 | `measure(event_name, **context) { block }` | Time a block, emit an info event with `duration_ms`, and re-raise on failure |
 | `#with_tags(*tags) { block }` | Add tags to context for the block |
 | `#measure_value(message) { block }` | Like #measure but returns the block's value |

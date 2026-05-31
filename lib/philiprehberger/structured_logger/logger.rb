@@ -10,6 +10,12 @@ module Philiprehberger
 
       CORRELATION_ID_KEY = :philiprehberger_structured_logger_correlation_id
 
+      # Regex matching a single Ruby backtrace line. Captures the file
+      # path, the line number, and (optionally) the method name. Handles
+      # both Ruby 3.4+ single-quote (`'method'`) and Ruby 3.3-and-earlier
+      # backtick-apostrophe (`` `method' ``) quoting.
+      BACKTRACE_LINE = /\A(?<file>.+?):(?<line>\d+)(?::in ['`](?<method>[^']+)')?\z/
+
       attr_reader :context, :level
 
       def initialize(**opts)
@@ -104,10 +110,41 @@ module Philiprehberger
         Thread.current[CORRELATION_ID_KEY] = previous
       end
 
-      def log_exception(exception, level: :error, **extra)
+      # Logs an exception's message, class, and backtrace as a single
+      # structured entry.
+      #
+      # @param exception [Exception] the exception to log.
+      # @param level [Symbol] the log level for the entry (default
+      #   `:error`).
+      # @param structured_backtrace [Boolean] when `false` (default),
+      #   the backtrace is emitted as an array of raw strings (the same
+      #   shape as `exception.backtrace`). When `true`, each backtrace
+      #   line is parsed into a hash with `:file`, `:line` (Integer),
+      #   and (when present) `:method` keys. Lines that don't match the
+      #   standard Ruby backtrace format are passed through as
+      #   `{ raw: "<original line>" }`. The parsed form is generally
+      #   easier to index in log-aggregation systems like Elasticsearch,
+      #   Datadog, or Loki.
+      # @param extra [Hash] additional context merged into the log
+      #   entry.
+      # @return [void]
+      #
+      # @example Default (raw string backtrace)
+      #   logger.log_exception(e)
+      #   # backtrace: ["app/foo.rb:42:in 'bar'", ...]
+      #
+      # @example Structured backtrace
+      #   logger.log_exception(e, structured_backtrace: true)
+      #   # backtrace: [
+      #   #   { file: "app/foo.rb", line: 42, method: "bar" },
+      #   #   ...
+      #   # ]
+      def log_exception(exception, level: :error, structured_backtrace: false, **extra)
+        bt = exception.backtrace || []
+        bt = parse_backtrace(bt) if structured_backtrace
         log(level, exception.message,
             error_class: exception.class.name,
-            backtrace: exception.backtrace || [],
+            backtrace: bt,
             **extra)
       end
 
@@ -212,6 +249,16 @@ module Philiprehberger
 
       def validate_level!(level)
         raise ArgumentError, "Invalid level: #{level}" unless LEVELS.key?(level)
+      end
+
+      def parse_backtrace(backtrace)
+        backtrace.map do |line|
+          if (m = line.match(BACKTRACE_LINE))
+            { file: m[:file], line: m[:line].to_i, method: m[:method] }.compact
+          else
+            { raw: line }
+          end
+        end
       end
     end
 

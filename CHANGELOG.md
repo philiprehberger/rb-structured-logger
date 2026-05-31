@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-30
+
+### Added
+- `Logger#log_exception(structured_backtrace: true)` option to emit the backtrace as an array of `{file:, line:, method:}` hashes for friendlier log-aggregation indexing
+
+### Fixed
+- README now includes the standard package card image after the badges
+- Bug report issue template now includes a required `gem-version` field
+
 ## [0.5.0] - 2026-04-25
 
 ### Added

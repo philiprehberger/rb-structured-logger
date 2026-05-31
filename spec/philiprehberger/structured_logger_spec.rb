@@ -347,6 +347,80 @@ RSpec.describe Philiprehberger::StructuredLogger::Logger do
 
       expect(entry['user_id']).to eq(42)
     end
+
+    context 'with structured_backtrace: false (default)' do
+      it 'emits the backtrace as an array of raw strings' do
+        exception = StandardError.new('boom')
+        exception.set_backtrace(["app/foo.rb:42:in 'bar'", "app/baz.rb:7:in 'qux'"])
+
+        logger.log_exception(exception)
+        entry = JSON.parse(output.string)
+
+        expect(entry['backtrace']).to eq(["app/foo.rb:42:in 'bar'", "app/baz.rb:7:in 'qux'"])
+      end
+    end
+
+    context 'with structured_backtrace: true' do
+      it 'emits the backtrace as an array of hashes with file, line, method keys' do
+        exception = StandardError.new('boom')
+        exception.set_backtrace(["app/foo.rb:42:in 'bar'", "lib/baz.rb:7:in 'qux'"])
+
+        logger.log_exception(exception, structured_backtrace: true)
+        entry = JSON.parse(output.string)
+
+        expect(entry['backtrace']).to eq([
+                                           { 'file' => 'app/foo.rb', 'line' => 42, 'method' => 'bar' },
+                                           { 'file' => 'lib/baz.rb', 'line' => 7, 'method' => 'qux' }
+                                         ])
+      end
+
+      it 'parses Ruby 3.3-style backtick-quoted method names' do
+        exception = StandardError.new('boom')
+        exception.set_backtrace(["app/foo.rb:42:in `bar'"])
+
+        logger.log_exception(exception, structured_backtrace: true)
+        entry = JSON.parse(output.string)
+
+        expect(entry['backtrace']).to eq([
+                                           { 'file' => 'app/foo.rb', 'line' => 42, 'method' => 'bar' }
+                                         ])
+      end
+
+      it 'omits the :method key when the line has no method segment' do
+        exception = StandardError.new('boom')
+        exception.set_backtrace(['app/foo.rb:42'])
+
+        logger.log_exception(exception, structured_backtrace: true)
+        entry = JSON.parse(output.string)
+
+        expect(entry['backtrace']).to eq([
+                                           { 'file' => 'app/foo.rb', 'line' => 42 }
+                                         ])
+        expect(entry['backtrace'].first).not_to have_key('method')
+      end
+
+      it 'falls back to :raw for lines that do not match the standard format' do
+        exception = StandardError.new('boom')
+        exception.set_backtrace(['totally garbage line', "app/foo.rb:1:in 'real'"])
+
+        logger.log_exception(exception, structured_backtrace: true)
+        entry = JSON.parse(output.string)
+
+        expect(entry['backtrace']).to eq([
+                                           { 'raw' => 'totally garbage line' },
+                                           { 'file' => 'app/foo.rb', 'line' => 1, 'method' => 'real' }
+                                         ])
+      end
+
+      it 'handles an empty backtrace' do
+        exception = StandardError.new('no backtrace')
+
+        logger.log_exception(exception, structured_backtrace: true)
+        entry = JSON.parse(output.string)
+
+        expect(entry['backtrace']).to eq([])
+      end
+    end
   end
 
   describe '#measure' do
